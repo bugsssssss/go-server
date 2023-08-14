@@ -14,13 +14,15 @@ import (
 	_ "github.com/lib/pq"
 )
 
+// ? struct for db queries
 type apiConfig struct {
 	DB *database.Queries
 }
 
 func main() {
-	fmt.Println("Hello world!")
+	fmt.Println("Hello welcome to my first API server on GO:")
 
+	// ? saying that our env is in .env file
 	godotenv.Load(".env")
 
 	// ? Pulling PORT env from .env file
@@ -30,24 +32,31 @@ func main() {
 	}
 	// ? Pulling DB env from .env file
 	dbURL := os.Getenv("DB_URL")
+
+	// ? checking if there is any error while getting dbURL from .env
 	if dbURL == "" {
 		log.Fatal("DB_URL is not found in the env")
 	}
 
+	// ? connecting to our postgres db by url
 	conn, err := sql.Open("postgres", dbURL)
 
+	// ? checking
 	if err != nil {
 		log.Fatal("Can't connect to database", err)
 	}
 
+	// ? if everything is okay then we create new cpnnection and new config
 	queries := database.New(conn)
 	apiCfg := apiConfig{
 		DB: queries,
 	}
 
+	// ? assign NewRouter imported from chi
 	router := chi.NewRouter()
 
-	// standart conf for handling
+	// ? standart conf for handling
+	// ? telling methods we are gonna need and link types
 	router.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   []string{"https://*", "http://*"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
@@ -57,11 +66,18 @@ func main() {
 		MaxAge:           300,
 	}))
 
+	// ? creating var for the v1 api endpoint
 	v1Router := chi.NewRouter()
+
+	// ? API endpoints, takes a handler as second parameter
 	v1Router.Get("/healthz", handlerReadiness)
 	v1Router.Get("/err", handlerErr)
+	v1Router.Get("/test", handlerReadiness)
 	v1Router.Post("/users", apiCfg.handlerCreateUser)
-
+	v1Router.Get("/users", apiCfg.middlewareAuth(apiCfg.handlerGetUser))
+	v1Router.Post("/feeds", apiCfg.middlewareAuth(apiCfg.handlerCreateFeed))
+	v1Router.Get("/feeds", apiCfg.handlerGetFeed)
+	// ? it add before every link phrase '/v1'
 	router.Mount("/v1", v1Router)
 
 	srv := &http.Server{
