@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/bugsssssss/rssag/internal/database"
 	"github.com/go-chi/chi"
@@ -20,6 +21,7 @@ type apiConfig struct {
 }
 
 func main() {
+
 	fmt.Println("Hello welcome to my first API server on GO:")
 
 	// ? saying that our env is in .env file
@@ -47,10 +49,12 @@ func main() {
 	}
 
 	// ? if everything is okay then we create new cpnnection and new config
-	queries := database.New(conn)
+	db := database.New(conn)
 	apiCfg := apiConfig{
-		DB: queries,
+		DB: db,
 	}
+
+	go startScraping(db, 10, time.Minute)
 
 	// ? assign NewRouter imported from chi
 	router := chi.NewRouter()
@@ -77,6 +81,7 @@ func main() {
 	v1Router.Get("/users", apiCfg.middlewareAuth(apiCfg.handlerGetUser))
 	v1Router.Post("/feeds", apiCfg.middlewareAuth(apiCfg.handlerCreateFeed))
 	v1Router.Get("/feeds", apiCfg.handlerGetFeed)
+	v1Router.Delete("/feeds/{feedID}", apiCfg.middlewareAuth(apiCfg.handlerDeleteFeed))
 
 	v1Router.Post("/feed_follows", apiCfg.middlewareAuth(apiCfg.handlerCreateFeedFollow))
 	v1Router.Get("/feed_follows", apiCfg.middlewareAuth(apiCfg.handlerGetFeedFollows))
